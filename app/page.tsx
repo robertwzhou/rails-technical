@@ -1,7 +1,7 @@
 "use client"; // Ensure this directive is at the top
 
 import React, { useState } from 'react';
-import { DragDropContext, Droppable, Draggable, DropResult } from 'react-beautiful-dnd';
+import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
 import styled from 'styled-components';
 
 type Item = {
@@ -95,22 +95,30 @@ const App: React.FC = () => {
     const sourceItems = Array.from(sourceList.items);
     const [removed] = sourceItems.splice(source.index, 1);
 
-    // Copy the destination items and insert the moved item
-    const destinationItems = Array.from(destinationList.items);
-    destinationItems.splice(destination.index, 0, removed);
-
-    // Update the state with new lists
-    setLists(
-      lists.map(list => {
-        if (list.id === sourceList.id) {
-          return { ...list, items: sourceItems };
-        }
-        if (list.id === destinationList.id) {
-          return { ...list, items: destinationItems };
-        }
-        return list;
-      })
-    );
+    if (sourceList.id === destinationList.id) {
+      // Moving within the same list
+      sourceItems.splice(destination.index, 0, removed);
+      setLists(
+        lists.map(list =>
+          list.id === sourceList.id ? { ...list, items: sourceItems } : list
+        )
+      );
+    } else {
+      // Moving between different lists
+      const destinationItems = Array.from(destinationList.items);
+      destinationItems.splice(destination.index, 0, removed);
+      setLists(
+        lists.map(list => {
+          if (list.id === sourceList.id) {
+            return { ...list, items: sourceItems };
+          }
+          if (list.id === destinationList.id) {
+            return { ...list, items: destinationItems };
+          }
+          return list;
+        })
+      );
+    }
   };
 
   return (

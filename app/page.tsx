@@ -40,9 +40,18 @@ const initialState: List[] = [
 
 const Container = styled.div`
   display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 20px;
+`;
+
+const ListsContainer = styled.div`
+  display: flex;
+  flex-direction: row;
   justify-content: space-around;
   padding: 20px;
-  color: #000000;
+  width: 100%;
+  overflow-x: auto; // Allow horizontal scrolling if needed
 `;
 
 const ListContainer = styled.div`
@@ -50,10 +59,24 @@ const ListContainer = styled.div`
   padding: 10px;
   width: 250px;
   border-radius: 5px;
+  margin: 0 10px; // Adjust margin to space out lists
+  display: flex;
+  flex-direction: column;
 `;
 
 const ListTitle = styled.h3`
   text-align: center;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  color: black;
+`;
+
+const RemoveButton = styled.button`
+  background: none;
+  border: none;
+  color: red;
+  cursor: pointer;
 `;
 
 const ItemContainer = styled.div`
@@ -62,28 +85,74 @@ const ItemContainer = styled.div`
   margin-bottom: 8px;
   border-radius: 3px;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+  color: black;  // Ensure item text color is black
+`;
+
+const AddItemForm = styled.form`
+  display: flex;
+  flex-direction: column;
+  margin-top: 10px;
+`;
+
+const AddItemInput = styled.input`
+  padding: 5px;
+  margin-bottom: 5px;
+  color: black; // Ensure input text color is black
+`;
+
+const AddItemButton = styled.button`
+  padding: 5px 10px;
+  background-color: #007bff; // Add background color
+  color: white; // Ensure button text color is white
+  border: none; // Remove border
+  cursor: pointer; // Change cursor to pointer
+  &:hover {
+    background-color: #0056b3; // Darken background on hover
+  }
+`;
+
+const AddListForm = styled.form`
+  display: flex;
+  justify-content: space-between;
+  width: 100%;
+  max-width: 600px;
+  margin-bottom: 20px;
+`;
+
+const AddListInput = styled.input`
+  flex: 1;
+  padding: 5px;
+  margin-right: 5px;
+  color: black; // Ensure input text color is black
+`;
+
+const AddListButton = styled.button`
+  padding: 5px 10px;
+  background-color: #28a745; // Add background color
+  color: white; // Ensure button text color is white
+  border: none; // Remove border
+  cursor: pointer; // Change cursor to pointer
+  &:hover {
+    background-color: #218838; // Darken background on hover
+  }
 `;
 
 const App: React.FC = () => {
   const [lists, setLists] = useState<List[]>(initialState);
+  const [newItemContent, setNewItemContent] = useState<{ [key: string]: string }>({});
+  const [newListName, setNewListName] = useState('');
 
   const onDragEnd = (result: DropResult) => {
     const { source, destination } = result;
 
-    // If no destination, return early
     if (!destination) {
       return;
     }
 
-    // If source and destination are the same, return early
-    if (
-      source.droppableId === destination.droppableId &&
-      source.index === destination.index
-    ) {
+    if (source.droppableId === destination.droppableId && source.index === destination.index) {
       return;
     }
 
-    // Find the source and destination lists
     const sourceList = lists.find(list => list.id === source.droppableId);
     const destinationList = lists.find(list => list.id === destination.droppableId);
 
@@ -91,20 +160,15 @@ const App: React.FC = () => {
       return;
     }
 
-    // Copy the source items
     const sourceItems = Array.from(sourceList.items);
     const [removed] = sourceItems.splice(source.index, 1);
 
     if (sourceList.id === destinationList.id) {
-      // Moving within the same list
       sourceItems.splice(destination.index, 0, removed);
       setLists(
-        lists.map(list =>
-          list.id === sourceList.id ? { ...list, items: sourceItems } : list
-        )
+        lists.map(list => (list.id === sourceList.id ? { ...list, items: sourceItems } : list))
       );
     } else {
-      // Moving between different lists
       const destinationItems = Array.from(destinationList.items);
       destinationItems.splice(destination.index, 0, removed);
       setLists(
@@ -121,34 +185,95 @@ const App: React.FC = () => {
     }
   };
 
+  const handleAddItem = (listId: string) => (e: React.FormEvent) => {
+    e.preventDefault();
+    const content = newItemContent[listId]?.trim();
+    if (!content) return;
+
+    const newItem: Item = {
+      id: `${listId}-${Date.now()}`,
+      content,
+    };
+
+    setLists(lists.map(list => (list.id === listId ? { ...list, items: [...list.items, newItem] } : list)));
+    setNewItemContent({ ...newItemContent, [listId]: '' });
+  };
+
+  const handleInputChange = (listId: string) => (e: React.ChangeEvent<HTMLInputElement>) => {
+    setNewItemContent({ ...newItemContent, [listId]: e.target.value });
+  };
+
+  const handleAddList = (e: React.FormEvent) => {
+    e.preventDefault();
+    const name = newListName.trim();
+    if (!name) return;
+
+    const newList: List = {
+      id: `${Date.now()}`,
+      name,
+      items: [],
+    };
+
+    setLists([...lists, newList]);
+    setNewListName('');
+  };
+
+  const handleRemoveList = (listId: string) => {
+    setLists(lists.filter(list => list.id !== listId));
+  };
+
   return (
-    <DragDropContext onDragEnd={onDragEnd}>
-      <Container>
-        {lists.map(list => (
-          <Droppable key={list.id} droppableId={list.id}>
-            {(provided) => (
-              <ListContainer ref={provided.innerRef} {...provided.droppableProps}>
-                <ListTitle>{list.name}</ListTitle>
-                {list.items.map((item, index) => (
-                  <Draggable key={item.id} draggableId={item.id} index={index}>
-                    {(provided) => (
-                      <ItemContainer
-                        ref={provided.innerRef}
-                        {...provided.draggableProps}
-                        {...provided.dragHandleProps}
-                      >
-                        {item.content}
-                      </ItemContainer>
-                    )}
-                  </Draggable>
-                ))}
-                {provided.placeholder}
-              </ListContainer>
-            )}
-          </Droppable>
-        ))}
-      </Container>
-    </DragDropContext>
+    <Container>
+      <AddListForm onSubmit={handleAddList}>
+        <AddListInput
+          type="text"
+          value={newListName}
+          onChange={(e) => setNewListName(e.target.value)}
+          placeholder="Add new list"
+        />
+        <AddListButton type="submit">Add List</AddListButton>
+      </AddListForm>
+
+      <DragDropContext onDragEnd={onDragEnd}>
+        <ListsContainer>
+          {lists.map(list => (
+            <Droppable key={list.id} droppableId={list.id}>
+              {(provided) => (
+                <ListContainer ref={provided.innerRef} {...provided.droppableProps}>
+                  <ListTitle>
+                    {list.name}
+                    <RemoveButton onClick={() => handleRemoveList(list.id)}>Remove</RemoveButton>
+                  </ListTitle>
+                  {list.items.map((item, index) => (
+                    <Draggable key={item.id} draggableId={item.id} index={index}>
+                      {(provided) => (
+                        <ItemContainer
+                          ref={provided.innerRef}
+                          {...provided.draggableProps}
+                          {...provided.dragHandleProps}
+                        >
+                          {item.content}
+                        </ItemContainer>
+                      )}
+                    </Draggable>
+                  ))}
+                  {provided.placeholder}
+                  <AddItemForm onSubmit={handleAddItem(list.id)}>
+                    <AddItemInput
+                      type="text"
+                      value={newItemContent[list.id] || ''}
+                      onChange={handleInputChange(list.id)}
+                      placeholder="Add new item"
+                    />
+                    <AddItemButton type="submit">Add</AddItemButton>
+                  </AddItemForm>
+                </ListContainer>
+              )}
+            </Droppable>
+          ))}
+        </ListsContainer>
+      </DragDropContext>
+    </Container>
   );
 };
 
